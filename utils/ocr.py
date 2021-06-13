@@ -2,75 +2,106 @@ import requests
 import time
 import json
 import os
-from PIL import Image, ImageEnhance
-
-
-def ocr_space_file(filename, overlay=False, api_key='e61f4d4c3488957', language='eng'):
-    """ OCR.space API request with local file.
-        Python3.5 - not tested on 2.7
-    :param filename: Your file path & name.
-    :param overlay: Is OCR.space overlay required in your response.
-                    Defaults to False.
-    :param api_key: OCR.space API key.
-                    Defaults to 'helloworld'.
-    :param language: Language code to be used in OCR.
-                    List of available language codes can be found on https://ocr.space/OCRAPI
-                    Defaults to 'en'.
-    :return: Result in JSON format.
-    """
-
-    payload = {'isOverlayRequired': overlay,
-               'apikey': api_key,
-               'language': language,
-               }
-    with open(filename, 'rb') as f:
-        r = requests.post('https://api.ocr.space/parse/image',
-                          files={filename: f},
-                          data=payload,
-                          )
-    return r.content.decode()
+import numpy as np
+import cv2
+from PIL import Image, ImageEnhance, ImageFont, ImageDraw
+from pytesseract import image_to_string, image_to_data, image_to_boxes, image_to_osd, Output
+import matplotlib
+# matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 
 def ocr_result(image_path):
-    subscription_key = "ad143190288d40b79483aa0d5c532724"
-    vision_base_url = "https://westus2.api.cognitive.microsoft.com/vision/v2.0/"
-    ocr_url = vision_base_url + "recognizeText?mode=Printed"
-    headers = {'Ocp-Apim-Subscription-Key': subscription_key, 'Content-Type': 'application/octet-stream'}
-    params = {'language': 'eng', 'detectOrientation': 'true'}
-
     image = Image.open(image_path)
     enh_con = ImageEnhance.Contrast(image)
     contrast = 2.0
     image = enh_con.enhance(contrast)
     # image = image.convert('L')
     # image = image.resize((800, 800))
-    image.save('OCR_temp.png')
-    image_data = open('../OCR_temp.png', "rb").read()
-    response = requests.post(ocr_url, headers=headers, params=params, data=image_data)
-    response.raise_for_status()
-    op_location = response.headers['Operation-Location']
-    analysis = {}
-    while "recognitionResults" not in analysis.keys():
-        time.sleep(3)
-        binary_content = requests.get(op_location, headers=headers, params=params).content
-        analysis = json.loads(binary_content.decode('ascii'))
-    line_infos = [region["lines"] for region in analysis["recognitionResults"]]
-    word_infos = []
-    for line in line_infos:
-        for word_metadata in line:
-            for word_info in word_metadata["words"]:
-                if 'confidence' in word_info.keys():
-                    if word_info['confidence'] == 'Low':
-                        continue
-                if word_info['boundingBox'][0] > word_info['boundingBox'][4]:
-                    continue
-                word_infos.append(word_info)
-    return word_infos
+    # image.save('OCR_temp.png')
+    # image_data = open('../OCR_temp.png', "rb").read()
+    return image_to_string(image, lang='eng', config='--psm 0')
+
+
+def test(image_path):
+    # Simple image to string
+    print(image_to_string(Image.open(image_path)))
+
+    # Get bounding box estimates
+    print(image_to_boxes(Image.open(image_path)))
+
+    # Get verbose data including boxes, confidences, line and page numbers
+    print(image_to_data(Image.open(image_path), output_type=Output.STRING))
+
+    # Get information about orientation and script detection
+    print(image_to_osd(Image.open(image_path)))
+
+
+def show_ocr_image(image_path, lang='eng', config=''):
+    image = cv2.imread(image_path)
+    results = image_to_data(cv2.cvtColor(image, cv2.COLOR_BGR2RGB), output_type=Output.DICT, lang=lang, config=config)
+    for i in range(len(results["text"])):
+        # extract the bounding box coordinates of the text region from the current result
+        tmp_tl_x = results["left"][i]
+        tmp_tl_y = results["top"][i]
+        tmp_br_x = tmp_tl_x + results["width"][i]
+        tmp_br_y = tmp_tl_y + results["height"][i]
+        tmp_level = results["level"][i]
+        conf = results["conf"][i]
+        text = results["text"][i]
+
+        if tmp_level == 5:
+            cv2.putText(image, text, (tmp_tl_x, tmp_tl_y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+            cv2.rectangle(image, (tmp_tl_x, tmp_tl_y), (tmp_br_x, tmp_br_y), (0, 0, 255), 1)
+
+    # cv2.imshow("image", image)
+    # cv2.waitKey(0)
+    im_shape = np.shape(image)
+    print(im_shape)
+    plt.figure(figsize=(im_shape[1] / 100, im_shape[0] / 100), dpi=300)
+    plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    # plt.imsave('test.png',image)
+    plt.show()
+
+
+def show_ocr_pil(image_path, lang='eng', config=''):
+    image = Image.open(image_path)
+    results = image_to_data(image, output_type=Output.DICT, lang=lang, config=config)
+    font = ImageFont.truetype('../font/sarasa-monoT-sc-regular.ttf')
+    draw = ImageDraw.Draw(image)
+    for i in range(len(results["text"])):
+        # extract the bounding box coordinates of the text region from the current result
+        tmp_tl_x = results["left"][i]
+        tmp_tl_y = results["top"][i]
+        tmp_br_x = tmp_tl_x + results["width"][i]
+        tmp_br_y = tmp_tl_y + results["height"][i]
+        tmp_level = results["level"][i]
+        conf = results["conf"][i]
+        text = results["text"][i]
+
+        if tmp_level == 5:
+            draw.text(xy=(tmp_tl_x, tmp_tl_y - 5), text=text, font=font, fill=(255, 0, 0))
+            draw.rectangle(xy=[(tmp_tl_x, tmp_tl_y), (tmp_br_x, tmp_br_y)], outline=(255, 0, 0))
+
+    im_shape = np.shape(image)
+    print(im_shape)
+    plt.figure(figsize=(im_shape[1] / 100, im_shape[0] / 100), dpi=300)
+    plt.imshow(image)
+    # plt.imsave('test.png',image)
+    plt.show()
 
 
 if __name__ == '__main__':
-    image_path = '../test_image'
-    for name in os.listdir(image_path):
-        image_file_path = os.path.join(image_path, name)
-        result = ocr_result(image_file_path)
-        print(result)
+    # image_path = '../test_image/OCR_temp.png'
+
+    # res = ocr_result(image_path)
+    # print(res)
+    # test(image_path)
+    # image_path = '../test_image/eng-text.png'
+    # show_ocr_image(image_path)
+
+    # image_path = '../test_image/chi_text.png'
+    # show_ocr_pil(image_path, lang='chi_sim')
+
+    image_path = '../test_image/OCR_temp.png'
+    show_ocr_pil(image_path, lang='eng')
