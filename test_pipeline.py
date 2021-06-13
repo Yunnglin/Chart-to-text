@@ -47,7 +47,7 @@ def make_dirs(directories):
     for directory in directories:
         if not os.path.exists(directory):
             os.makedirs(directory)
-def load_net(testiter, cfg_name, data_dir, cache_dir, result_dir, cuda_id=0):
+def load_net(testiter, cfg_name, data_dir, cache_dir, result_dir, cuda_id=1):
     cfg_file = os.path.join(system_configs.config_dir, cfg_name + ".json")
     with open(cfg_file, "r") as f:
         configs = json.load(f)
@@ -55,7 +55,7 @@ def load_net(testiter, cfg_name, data_dir, cache_dir, result_dir, cuda_id=0):
     configs["system"]["data_dir"] = data_dir
     configs["system"]["cache_dir"] = cache_dir
     configs["system"]["result_dir"] = result_dir
-    configs["system"]["tar_data_dir"] = "Cls"
+    configs["system"]["tar_data_dir"] = "cls"
     system_configs.update_config(configs["system"])
 
     train_split = system_configs.train_split
@@ -88,31 +88,31 @@ def load_net(testiter, cfg_name, data_dir, cache_dir, result_dir, cuda_id=0):
 
 def Pre_load_nets():
     methods = {}
-    db_cls, nnet_cls = load_net(50000, "CornerNetCls", "data/clsdata(1031)", "data/clsdata(1031)/cache",
-                                "data/clsdata(1031)/result")
+    db_cls, nnet_cls = load_net(50000, "CornerNetCls", "./data/clsdata(1031)", "./data/clsdata(1031)/cache",
+                                "./data/clsdata(1031)/result")
 
     from testfile.test_line_cls_pure_real import testing
     path = 'testfile.test_%s' % "CornerNetCls"
     testing_cls = importlib.import_module(path).testing
     methods['Cls'] = [db_cls, nnet_cls, testing_cls]
-    db_bar, nnet_bar = load_net(50000, "CornerNetPureBar", "data/bardata(1031)", "data/bardata(1031)/cache",
-                                "data/bardata(1031)/result")
+    db_bar, nnet_bar = load_net(50000, "CornerNetPureBar", "./data/bardata(1031)", "./data/bardata(1031)/cache",
+                                "./data/bardata(1031)/result")
     path = 'testfile.test_%s' % "CornerNetPureBar"
     testing_bar = importlib.import_module(path).testing
     methods['Bar'] = [db_bar, nnet_bar, testing_bar]
-    db_pie, nnet_pie = load_net(50000, "CornerNetPurePie", "data/piedata(1008)", "data/piedata(1008)/cache",
-                                "data/piedata(1008)/result")
+    db_pie, nnet_pie = load_net(50000, "CornerNetPurePie", "./data/piedata(1008)", "./data/piedata(1008)/cache",
+                                "./data/piedata(1008)/result")
     path = 'testfile.test_%s' % "CornerNetPurePie"
     testing_pie = importlib.import_module(path).testing
     methods['Pie'] = [db_pie, nnet_pie, testing_pie]
-    db_line, nnet_line = load_net(50000, "CornerNetLine", "data/linedata(1028)", "data/linedata(1028)/cache",
-                                  "data/linedata(1028)/result")
+    db_line, nnet_line = load_net(50000, "CornerNetLine", "./data/linedata(1028)", "./data/linedata(1028)/cache",
+                                  "./data/linedata(1028)/result")
     path = 'testfile.test_%s' % "CornerNetLine"
     testing_line = importlib.import_module(path).testing
     methods['Line'] = [db_line, nnet_line, testing_line]
-    db_line_cls, nnet_line_cls = load_net(20000, "CornerNetLineClsReal", "data/linedata(1028)",
-                                          "data/linedata(1028)/cache",
-                                          "data/linedata(1028)/result")
+    db_line_cls, nnet_line_cls = load_net(20000, "CornerNetLineClsReal", "./data/linedata(1028)",
+                                          "./data/linedata(1028)/cache",
+                                          "./data/linedata(1028)/result")
     path = 'testfile.test_%s' % "CornerNetLineCls"
     testing_line_cls = importlib.import_module(path).testing
     methods['LineCls'] = [db_line_cls, nnet_line_cls, testing_line_cls]
@@ -120,6 +120,7 @@ def Pre_load_nets():
 methods = Pre_load_nets()
 
 def ocr_result(image_path):
+    # TODO: Microsoft OCR无法注册，使用其他OCR，尝试本地的tesserect
     subscription_key = "ad143190288d40b79483aa0d5c532724"
     vision_base_url = "https://westus2.api.cognitive.microsoft.com/vision/v2.0/"
     ocr_url = vision_base_url + "read/core/asyncBatchAnalyze"
@@ -274,10 +275,13 @@ def test(image_path, debug=False, suffix=None, min_value_official=None, max_valu
 
 if __name__ == "__main__":
 
-    tar_path = 'C:/work/clsdata(1031)/cls/images/test2019'
+    tar_path = './test_image'
     images = os.listdir(tar_path)
     from random import shuffle
     shuffle(images)
     for image in tqdm(images):
         path = os.path.join(tar_path, image)
         test(path)
+ 
+        # res = ocr_result(tar_path)
+        # print(res)

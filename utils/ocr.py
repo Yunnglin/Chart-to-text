@@ -3,6 +3,8 @@ import time
 import json
 import os
 from PIL import Image, ImageEnhance
+
+
 def ocr_space_file(filename, overlay=False, api_key='e61f4d4c3488957', language='eng'):
     """ OCR.space API request with local file.
         Python3.5 - not tested on 2.7
@@ -27,6 +29,8 @@ def ocr_space_file(filename, overlay=False, api_key='e61f4d4c3488957', language=
                           data=payload,
                           )
     return r.content.decode()
+
+
 def ocr_result(image_path):
     subscription_key = "ad143190288d40b79483aa0d5c532724"
     vision_base_url = "https://westus2.api.cognitive.microsoft.com/vision/v2.0/"
@@ -41,7 +45,7 @@ def ocr_result(image_path):
     # image = image.convert('L')
     # image = image.resize((800, 800))
     image.save('OCR_temp.png')
-    image_data = open('OCR_temp.png', "rb").read()
+    image_data = open('../OCR_temp.png', "rb").read()
     response = requests.post(ocr_url, headers=headers, params=params, data=image_data)
     response.raise_for_status()
     op_location = response.headers['Operation-Location']
@@ -62,9 +66,11 @@ def ocr_result(image_path):
                     continue
                 word_infos.append(word_info)
     return word_infos
-image_path = 'C:\\work\\evalset_fqa\\vbar\\bitmap\\'
-image_names = os.listdir(image_path)
-for name in ['495.jpg', '151,jpg']:
-    image_file_path = os.path.join(image_path, name)
-    result = ocr_result(image_file_path)
-    print(result)
+
+
+if __name__ == '__main__':
+    image_path = '../test_image'
+    for name in os.listdir(image_path):
+        image_file_path = os.path.join(image_path, name)
+        result = ocr_result(image_file_path)
+        print(result)
